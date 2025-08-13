@@ -1,5 +1,6 @@
-import { ChatCompletionMessageParam } from "openai/resources";
-import openai from "../services/openai";
+import { openai } from "@ai-sdk/openai";
+import { generateObject } from "ai";
+import { z } from "zod";
 import { Data } from "../utils/database";
 import PERSONALITY_PROMPT from "../constants/PERSONALITY_PROMPT";
 import { encoding_for_model } from "tiktoken";
@@ -94,14 +95,17 @@ if (!fs.existsSync(stickersDir))
 const stickerOptions: string[] = fs
   .readdirSync(stickersDir)
   .filter((file) => file.endsWith(".webp"));
+if (stickerOptions.length === 0) stickerOptions.push("fallback.webp");
 
 const audiosDir = path.join(getHomeDir(), "audios");
 if (!fs.existsSync(audiosDir)) throw new Error("Diretório de áudios não encontrado: " + audiosDir);
 const audioOptions: string[] = fs.readdirSync(audiosDir).filter((file) => file.endsWith(".mp3"));
+if (audioOptions.length === 0) audioOptions.push("fallback.mp3");
 
 const memesDir = path.join(getHomeDir(), "memes");
 if (!fs.existsSync(memesDir)) throw new Error("Diretório de memes não encontrado: " + memesDir);
 const memeOptions: string[] = fs.readdirSync(memesDir).filter((file) => file.endsWith(".jpg"));
+if (memeOptions.length === 0) memeOptions.push("fallback.jpg");
 
 export default async function generateResponse(
   data: Data,
@@ -161,11 +165,11 @@ export default async function generateResponse(
 
   const contextData = formatDataForPrompt(data);
 
-  const inputMessages: ChatCompletionMessageParam[] = [
-    { role: "system", content: PERSONALITY_PROMPT },
-    { role: "assistant", content: contextData },
+  const inputMessages = [
+    { role: "system" as const, content: PERSONALITY_PROMPT },
+    { role: "assistant" as const, content: contextData },
     {
-      role: "user",
+      role: "user" as const,
       content: `Conversa: \n\n${messagesMaped}`,
     },
   ];
@@ -178,122 +182,60 @@ export default async function generateResponse(
     "tamanho da mensagem": inputText.length,
   });
 
-  const responseSchema = {
-    type: "json_schema" as const,
-    json_schema: {
-      name: "bot_response",
-      strict: false,
-      schema: {
-        type: "object",
-        properties: {
-          actions: {
-            type: "array",
-            minItems: 1,
-            items: {
-              type: "object",
-              properties: {
-                type: {
-                  type: "string",
-                  enum: ["message", "sticker", "audio", "poll", "location", "meme", "contact"],
-                  description: "Tipo da ação",
-                },
-                message: {
-                  type: "object",
-                  properties: {
-                    reply: {
-                      type: "string",
-                      description: "ID da mensagem que está sendo respondida (opcional)",
-                    },
-                    text: {
-                      type: "string",
-                      description:
-                        "Resposta com personalidade passivo-agressiva/irônica (máximo 300 caracteres)",
-                    },
-                  },
-                  required: ["text"],
-                  additionalProperties: false,
-                },
-                sticker: {
-                  type: "string",
-                  enum: stickerOptions,
-                  description: "Nome do arquivo de sticker da lista disponível",
-                },
-                audio: {
-                  type: "string",
-                  enum: audioOptions,
-                  description: "Nome do arquivo de áudio da lista disponível",
-                },
-                meme: {
-                  type: "string",
-                  enum: memeOptions,
-                  description: "Nome do arquivo de meme da lista disponível",
-                },
-                poll: {
-                  type: "object",
-                  properties: {
-                    question: {
-                      type: "string",
-                      description: "Pergunta irônica/engraçada para a enquete",
-                    },
-                    options: {
-                      type: "array",
-                      items: {
-                        type: "string",
-                      },
-                      minItems: 3,
-                      maxItems: 3,
-                      description: "Exatamente 3 opções para a enquete",
-                    },
-                  },
-                  required: ["question", "options"],
-                  additionalProperties: false,
-                },
-                location: {
-                  type: "object",
-                  properties: {
-                    latitude: {
-                      type: "number",
-                      description: "Latitude da localização",
-                    },
-                    longitude: {
-                      type: "number",
-                      description: "Longitude da localização",
-                    },
-                  },
-                  required: ["latitude", "longitude"],
-                  additionalProperties: false,
-                },
-              },
-              required: ["type"],
-              additionalProperties: false,
-            },
-          },
-        },
-        required: ["actions"],
-        additionalProperties: false,
-      },
-    },
-  };
+  const responseSchema = z.object({
+    actions: z
+      .array(
+        z.object({
+          type: z.enum(["message", "sticker", "audio", "poll", "location", "meme", "contact"]),
+          message: z
+            .object({
+              reply: z.string().optional(),
+              text: z.string(),
+            })
+            .optional(),
+          sticker: z.enum(stickerOptions as [string, ...string[]]).optional(),
+          audio: z.enum(audioOptions as [string, ...string[]]).optional(),
+          meme: z.enum(memeOptions as [string, ...string[]]).optional(),
+          poll: z
+            .object({
+              question: z.string(),
+              options: z.array(z.string()).length(3),
+            })
+            .optional(),
+          location: z
+            .object({
+              latitude: z.number(),
+              longitude: z.number(),
+            })
+            .optional(),
+          contact: z
+            .object({
+              name: z.string().optional(),
+              cell: z.string(),
+            })
+            .optional(),
+        })
+      )
+      .min(1),
+  });
 
   beautifulLogger.aiGeneration("processing", "Enviando requisição para OpenAI...");
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4.1-mini",
+  const { object: response } = await generateObject({
+    model: openai("gpt-4o-mini"),
     messages: inputMessages,
-    response_format: responseSchema,
+    schema: responseSchema,
     temperature: 0.8,
-    max_tokens: 100,
   });
 
-  const content = response.choices[0]?.message?.content;
-
-  if (!content) {
+  if (!response) {
     beautifulLogger.aiGeneration("error", "Nenhuma resposta foi gerada pela IA");
     throw new Error("Nenhuma resposta foi gerada pela IA");
   }
 
-  // Calcular tokens de saída
-  const outputTokens = calculateTokens(content);
+  // Calcular tokens de saída (aproximação para o Vercel AI SDK)
+  const responseText = JSON.stringify(response);
+  const outputTokens = calculateTokens(responseText);
   const totalTokens = inputTokens + outputTokens;
 
   // Calcular custo
@@ -310,9 +252,7 @@ export default async function generateResponse(
   });
 
   try {
-    const parsedResponse: { actions: ApiResponseAction[] } = JSON.parse(content);
-
-    if (!Array.isArray(parsedResponse.actions)) {
+    if (!Array.isArray(response.actions)) {
       beautifulLogger.aiGeneration("error", "Resposta não contém array de ações válidas");
       return {
         actions: [],
@@ -326,11 +266,11 @@ export default async function generateResponse(
     }
 
     beautifulLogger.aiGeneration("response", {
-      "quantidade de ações": parsedResponse.actions.length,
-      "tipos de ação": parsedResponse.actions.map((a) => a.type).join(", "),
+      "quantidade de ações": response.actions.length,
+      "tipos de ação": response.actions.map((a) => a.type).join(", "),
     });
 
-    const convertedActions: BotResponse = parsedResponse.actions.map((action) => {
+    const convertedActions: BotResponse = response.actions.map((action) => {
       const result: ResponseAction = {};
 
       if (action.type === "message" && action.message) {
@@ -340,7 +280,10 @@ export default async function generateResponse(
       } else if (action.type === "audio" && action.audio) {
         result.audio = action.audio;
       } else if (action.type === "poll" && action.poll) {
-        result.poll = action.poll;
+        result.poll = {
+          question: action.poll.question,
+          options: action.poll.options as [string, string, string],
+        };
       } else if (action.type === "location" && action.location) {
         result.location = action.location;
       } else if (action.type === "meme" && action.meme) {
@@ -368,11 +311,11 @@ export default async function generateResponse(
     };
   } catch (error) {
     beautifulLogger.aiGeneration("error", {
-      erro: "Falha ao fazer parse da resposta JSON",
-      "conteúdo recebido": content.substring(0, 100) + "...",
+      erro: "Falha ao processar resposta",
+      "resposta recebida": JSON.stringify(response).substring(0, 100) + "...",
     });
-    console.error("Erro ao fazer parse da resposta JSON:", error);
-    console.error("Conteúdo recebido:", content);
-    throw new Error("Resposta da IA não está no formato JSON válido");
+    console.error("Erro ao processar resposta:", error);
+    console.error("Resposta recebida:", response);
+    throw new Error("Resposta da IA não está no formato válido");
   }
 }

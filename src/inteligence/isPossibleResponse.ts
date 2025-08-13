@@ -1,5 +1,7 @@
+import { openai } from "@ai-sdk/openai";
+import { generateObject } from "ai";
+import { z } from "zod";
 import POSSIBLE_RESPONSE_PROMPT from "../constants/POSSIBLE_RESPONSE_PROMPT";
-import openai from "../services/openai";
 import { Data } from "../utils/database";
 import { Message } from "./generateResponse";
 
@@ -41,30 +43,13 @@ export default async function isPossibleResponse(data: Data, messages: Message) 
 
   const contextData = formatDataForPrompt(data);
 
-  const responseSchema = {
-    type: "json_schema" as const,
-    json_schema: {
-      name: "possible_response",
-      strict: true,
-      schema: {
-        type: "object",
-        properties: {
-          possible: {
-            type: "boolean",
-          },
-          reason: {
-            type: "string",
-            description: "Motivo pelo qual a resposta é considerada possível ou não.",
-          },
-        },
-        required: ["possible", "reason"],
-        additionalProperties: false,
-      },
-    },
-  };
+  const responseSchema = z.object({
+    possible: z.boolean(),
+    reason: z.string(),
+  });
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4.1-nano",
+  const { object: response } = await generateObject({
+    model: openai("gpt-4o-mini"),
     messages: [
       { role: "system", content: POSSIBLE_RESPONSE_PROMPT },
       {
@@ -76,29 +61,24 @@ export default async function isPossibleResponse(data: Data, messages: Message) 
         content: `Conversa: \n\n${messagesMaped}`,
       },
     ],
-    response_format: responseSchema,
-    max_tokens: 30,
+    schema: responseSchema,
   });
 
-  const content = response.choices[0]?.message?.content;
-
-  if (!content) {
+  if (!response) {
     throw new Error("Nenhuma resposta foi gerada pela IA");
   }
 
   try {
-    console.log("Conteúdo do resumo recebido:", content);
+    console.log("Resposta recebida:", response);
 
-    const parsedResponse = JSON.parse(content);
-
-    if (!("possible" in parsedResponse)) {
+    if (!("possible" in response)) {
       throw new Error("Resposta não contém possible");
     }
 
-    return parsedResponse as { possible: boolean; reason: string };
+    return response as { possible: boolean; reason: string };
   } catch (error) {
-    console.error("Erro ao fazer parse da resposta do resumo:", error);
-    console.error("Conteúdo recebido:", content);
-    throw new Error("Resposta da IA para resumo não está no formato JSON válido");
+    console.error("Erro ao processar resposta:", error);
+    console.error("Resposta recebida:", response);
+    throw new Error("Resposta da IA não está no formato válido");
   }
 }

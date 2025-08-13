@@ -9,6 +9,8 @@ import log from "./utils/log";
 import isPossibleResponse from "./inteligence/isPossibleResponse";
 import beautifulLogger from "./utils/beautifulLogger";
 import silenceRapy from "./inteligence/silenceRapy";
+import { downloadMediaMessage } from "@whiskeysockets/baileys";
+import getTextInAudio from "./inteligence/getTextInAudio";
 
 let messages: Message = [];
 let lastRapyResponseTime = 0;
@@ -21,9 +23,25 @@ export default async function rapy(whatsapp: Whatsapp) {
   let recentMessageTimes: number[] = [];
 
   whatsapp.registerMessageHandler(async (sessionId, msg, type, senderInfo) => {
-    if (type !== "text") return;
-    const content = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
-    if (!content || !senderInfo) return;
+    if (!["text", "audio"].includes(type)) return;
+
+    let content = "";
+
+    if (msg.message?.audioMessage?.url) {
+      const buffer = (await downloadMediaMessage(msg, "buffer", {})) as Buffer;
+
+      const text = await getTextInAudio(buffer);
+
+      if (text) {
+        content = text;
+      }
+    }
+
+    if (msg.message?.conversation || msg.message?.extendedTextMessage?.text) {
+      content = msg.message?.conversation ?? msg.message?.extendedTextMessage?.text ?? "";
+    }
+
+    if (!content || !senderInfo || content.length === 0) return;
     const messageId = msg.key.id;
 
     const silence = await silenceRapy(whatsapp, sessionId, msg, messages, silenced);

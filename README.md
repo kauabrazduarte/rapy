@@ -24,6 +24,7 @@ Rapy não é apenas um bot — é um novo membro do seu grupo. Ela **analisa, en
 | **Detecção de Atividade**   | Ajusta tempo de resposta conforme movimento no grupo.             |
 | **Emoções Dinâmicas**       | “Sentimento” diferente para cada membro, que muda com o tempo.    |
 | **Otimização de Tokens**    | Gasta o mínimo possível mantendo a qualidade.                     |
+| **Entende áudios**          | Rapy tem a capacidade de escutar áudios.                          |
 
 ---
 
@@ -56,7 +57,8 @@ Rapy não é apenas um bot — é um novo membro do seu grupo. Ela **analisa, en
 - **TypeScript** — Linguagem principal.
 - **Node.js** — Runtime.
 - **Baileys** — Cliente WhatsApp Web.
-- **OpenAI API** — Geração de respostas inteligentes.
+- **Vercel AI SDK** — Geração de respostas inteligentes.
+- **OpenAI API** — Suporte ao Vercel AI SDK e transcrição de áudios.
 
 ---
 

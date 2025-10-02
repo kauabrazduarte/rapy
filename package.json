@@ -16,7 +16,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev ./src/index.ts",
-    "build": "node build.mjs",
+    "build": "npm install && npm run build:dev && npm run format:stickers",
+    "build:dev": "node build.mjs",
     "start": "node dist/bundle.js",
     "format:stickers": "ts-node ./src/scripts/formatStickers.ts"
   },

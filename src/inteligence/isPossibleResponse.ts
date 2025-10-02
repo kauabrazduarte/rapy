@@ -13,10 +13,12 @@ export default async function isPossibleResponse(
   const lastMessage = messages[messages.length - 1];
 
   if (isRespondWhenCalled()) {
+    const mention = /\brapy\b/i.test(lastMessage.content);
+
     return {
-      possible: !lastMessage.ia && lastMessage.content.includes("rapy"),
+      possible: !lastMessage.ia && mention,
       reason:
-        !lastMessage.ia && lastMessage.content.includes("rapy")
+        !lastMessage.ia && mention
           ? "Responder quando chamado marcado."
           : "Bot não chamado, impossível responder.",
     };

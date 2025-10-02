@@ -170,6 +170,7 @@ export default async function rapy(whatsapp: Whatsapp) {
         const { possible, reason } = await isPossibleResponse(
           db.getAll(),
           messages,
+          msg,
         );
 
         if (!possible) {

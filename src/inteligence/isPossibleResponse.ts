@@ -5,14 +5,33 @@ import POSSIBLE_RESPONSE_PROMPT from "../constants/POSSIBLE_RESPONSE_PROMPT";
 import { Data } from "../utils/database";
 import { Message } from "./generateResponse";
 import isRespondWhenCalled from "../utils/isRespondWhenCalled";
+import { proto } from "@whiskeysockets/baileys";
 
 export default async function isPossibleResponse(
   data: Data,
   messages: Message,
+  msg: proto.IWebMessageInfo,
 ) {
   const lastMessage = messages[messages.length - 1];
 
   if (isRespondWhenCalled()) {
+    const quoted =
+      msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
+        ?.conversation;
+
+    if (quoted) {
+      const iaMessages = messages
+        .filter((message) => message.ia)
+        .map((message) => message.content);
+
+      if (iaMessages.includes("(Rapy): " + quoted)) {
+        return {
+          possible: true,
+          reason: "Mensagem respondida.",
+        };
+      }
+    }
+
     const mention = /\brapy\b/i.test(lastMessage.content);
 
     return {

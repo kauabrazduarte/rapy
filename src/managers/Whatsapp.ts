@@ -22,7 +22,7 @@ export type MessageHandler = (
   senderInfo?: {
     jid: string;
     name?: string;
-  }
+  },
 ) => void;
 
 const OFFLINE_DELAY_MS = 60_000;
@@ -36,7 +36,9 @@ export default class Whatsapp {
     const { state, saveCreds } = await useMultiFileAuthState("auth");
     this.sock = makeWASocket({
       auth: state,
-      logger: LoggerConfig.forBaileys(process.env.NODE_ENV === "production" ? "error" : "warn"),
+      logger: LoggerConfig.forBaileys(
+        process.env.NODE_ENV === "production" ? "error" : "warn",
+      ),
     });
 
     this.sock.ev.on("creds.update", saveCreds);
@@ -53,12 +55,16 @@ export default class Whatsapp {
 
       if (connection === "close") {
         const shouldReconnect =
-          (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+          (lastDisconnect?.error as Boom)?.output?.statusCode !==
+          DisconnectReason.loggedOut;
         if (shouldReconnect) {
           this.init();
         } else {
           console.log("Desconectado. Faça login novamente.");
-          fs.rmSync(path.join(getHomeDir(), "auth"), { recursive: true, force: true });
+          fs.rmSync(path.join(getHomeDir(), "auth"), {
+            recursive: true,
+            force: true,
+          });
         }
       } else if (connection === "open") {
         console.log("✅ Conectado ao WhatsApp");
@@ -126,7 +132,7 @@ export default class Whatsapp {
         } catch {}
       },
       OFFLINE_DELAY_MS,
-      "debounce-offline"
+      "debounce-offline",
     );
   }
 
@@ -145,7 +151,7 @@ export default class Whatsapp {
           key: { id: replyTo, remoteJid: jid },
           message: {},
         },
-      }
+      },
     );
   }
 
@@ -171,9 +177,16 @@ export default class Whatsapp {
     });
   }
 
-  async createPoll(jid: string, name: string, options: string[], selectableCount: number = 1) {
+  async createPoll(
+    jid: string,
+    name: string,
+    options: string[],
+    selectableCount: number = 1,
+  ) {
     if (!this.sock) throw new Error("Não conectado");
-    await this.sock.sendMessage(jid, { poll: { name, values: options, selectableCount } });
+    await this.sock.sendMessage(jid, {
+      poll: { name, values: options, selectableCount },
+    });
   }
 
   async sendLocation(jid: string, latitude: number, longitude: number) {
@@ -200,11 +213,18 @@ export default class Whatsapp {
 
   async sendAudio(jid: string, filePath: string) {
     if (!this.sock) throw new Error("Não conectado");
-    await this.sock.sendMessage(jid, {
-      audio: { url: filePath },
-      ptt: true,
-      mimetype: "audio/mpeg",
-    });
+
+    try {
+      const audioBuffer = fs.readFileSync(filePath);
+      await this.sock.sendMessage(jid, {
+        audio: audioBuffer,
+        ptt: true,
+        mimetype: "audio/mpeg",
+      });
+    } catch (error) {
+      console.error("Erro ao enviar áudio:", error);
+      throw error;
+    }
   }
 
   private async updatePresence(to: string, presence: WAPresence) {

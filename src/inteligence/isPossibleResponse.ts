@@ -4,11 +4,24 @@ import { z } from "zod";
 import POSSIBLE_RESPONSE_PROMPT from "../constants/POSSIBLE_RESPONSE_PROMPT";
 import { Data } from "../utils/database";
 import { Message } from "./generateResponse";
+import isRespondWhenCalled from "../utils/isRespondWhenCalled";
 
 export default async function isPossibleResponse(
   data: Data,
   messages: Message,
 ) {
+  const lastMessage = messages[messages.length - 1];
+
+  if (isRespondWhenCalled()) {
+    return {
+      possible: !lastMessage.ia && lastMessage.content.includes("rapy"),
+      reason:
+        !lastMessage.ia && lastMessage.content.includes("rapy")
+          ? "Responder quando chamado marcado."
+          : "Bot não chamado, impossível responder.",
+    };
+  }
+
   const messagesMaped: string = messages
     .slice(-30)
     .map((message) => message.content)

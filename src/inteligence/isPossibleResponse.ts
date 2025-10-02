@@ -5,7 +5,10 @@ import POSSIBLE_RESPONSE_PROMPT from "../constants/POSSIBLE_RESPONSE_PROMPT";
 import { Data } from "../utils/database";
 import { Message } from "./generateResponse";
 
-export default async function isPossibleResponse(data: Data, messages: Message) {
+export default async function isPossibleResponse(
+  data: Data,
+  messages: Message,
+) {
   const messagesMaped: string = messages
     .slice(-30)
     .map((message) => message.content)
@@ -49,7 +52,7 @@ export default async function isPossibleResponse(data: Data, messages: Message) 
   });
 
   const { object: response } = await generateObject({
-    model: openai("gpt-4o-mini"),
+    model: openai("gpt-5-nano"),
     messages: [
       { role: "system", content: POSSIBLE_RESPONSE_PROMPT },
       {

@@ -39,7 +39,14 @@ export type ResponseAction = {
 };
 
 type ApiResponseAction = {
-  type: "message" | "sticker" | "audio" | "poll" | "location" | "meme" | "contact";
+  type:
+    | "message"
+    | "sticker"
+    | "audio"
+    | "poll"
+    | "location"
+    | "meme"
+    | "contact";
   message?: {
     reply?: string;
     text: string;
@@ -98,18 +105,24 @@ const stickerOptions: string[] = fs
 if (stickerOptions.length === 0) stickerOptions.push("fallback.webp");
 
 const audiosDir = path.join(getHomeDir(), "audios");
-if (!fs.existsSync(audiosDir)) throw new Error("Diretório de áudios não encontrado: " + audiosDir);
-const audioOptions: string[] = fs.readdirSync(audiosDir).filter((file) => file.endsWith(".mp3"));
+if (!fs.existsSync(audiosDir))
+  throw new Error("Diretório de áudios não encontrado: " + audiosDir);
+const audioOptions: string[] = fs
+  .readdirSync(audiosDir)
+  .filter((file) => file.endsWith(".mp3"));
 if (audioOptions.length === 0) audioOptions.push("fallback.mp3");
 
 const memesDir = path.join(getHomeDir(), "memes");
-if (!fs.existsSync(memesDir)) throw new Error("Diretório de memes não encontrado: " + memesDir);
-const memeOptions: string[] = fs.readdirSync(memesDir).filter((file) => file.endsWith(".jpg"));
+if (!fs.existsSync(memesDir))
+  throw new Error("Diretório de memes não encontrado: " + memesDir);
+const memeOptions: string[] = fs
+  .readdirSync(memesDir)
+  .filter((file) => file.endsWith(".jpg"));
 if (memeOptions.length === 0) memeOptions.push("fallback.jpg");
 
 export default async function generateResponse(
   data: Data,
-  messages: Message
+  messages: Message,
 ): Promise<GenerateResponseResult> {
   beautifulLogger.aiGeneration("start", "Iniciando geração de resposta...");
 
@@ -118,7 +131,7 @@ export default async function generateResponse(
       (otherMessage, otherIndex) =>
         otherIndex > index &&
         otherMessage.content === message.content &&
-        otherMessage.name === message.name
+        otherMessage.name === message.name,
     );
   });
 
@@ -130,7 +143,8 @@ export default async function generateResponse(
     "mensagens processadas": uniqueMessages.length,
     "mensagens originais": messages.length,
     "duplicatas removidas": messages.length - uniqueMessages.length,
-    "mensagem mais recente": uniqueMessages[uniqueMessages.length - 1]?.content || "nenhuma",
+    "mensagem mais recente":
+      uniqueMessages[uniqueMessages.length - 1]?.content || "nenhuma",
   });
 
   const formatDataForPrompt = (data: Data): string => {
@@ -186,7 +200,15 @@ export default async function generateResponse(
     actions: z
       .array(
         z.object({
-          type: z.enum(["message", "sticker", "audio", "poll", "location", "meme", "contact"]),
+          type: z.enum([
+            "message",
+            "sticker",
+            "audio",
+            "poll",
+            "location",
+            "meme",
+            "contact",
+          ]),
           message: z
             .object({
               reply: z.string().optional(),
@@ -214,22 +236,28 @@ export default async function generateResponse(
               cell: z.string(),
             })
             .optional(),
-        })
+        }),
       )
       .min(1),
   });
 
-  beautifulLogger.aiGeneration("processing", "Enviando requisição para OpenAI...");
+  beautifulLogger.aiGeneration(
+    "processing",
+    "Enviando requisição para OpenAI...",
+  );
 
   const { object: response } = await generateObject({
-    model: openai("gpt-4o-mini"),
+    model: openai("gpt-5-nano"),
     messages: inputMessages,
     schema: responseSchema,
     temperature: 0.8,
   });
 
   if (!response) {
-    beautifulLogger.aiGeneration("error", "Nenhuma resposta foi gerada pela IA");
+    beautifulLogger.aiGeneration(
+      "error",
+      "Nenhuma resposta foi gerada pela IA",
+    );
     throw new Error("Nenhuma resposta foi gerada pela IA");
   }
 
@@ -253,7 +281,10 @@ export default async function generateResponse(
 
   try {
     if (!Array.isArray(response.actions)) {
-      beautifulLogger.aiGeneration("error", "Resposta não contém array de ações válidas");
+      beautifulLogger.aiGeneration(
+        "error",
+        "Resposta não contém array de ações válidas",
+      );
       return {
         actions: [],
         cost: {

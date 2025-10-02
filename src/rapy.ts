@@ -38,13 +38,22 @@ export default async function rapy(whatsapp: Whatsapp) {
     }
 
     if (msg.message?.conversation || msg.message?.extendedTextMessage?.text) {
-      content = msg.message?.conversation ?? msg.message?.extendedTextMessage?.text ?? "";
+      content =
+        msg.message?.conversation ??
+        msg.message?.extendedTextMessage?.text ??
+        "";
     }
 
     if (!content || !senderInfo || content.length === 0) return;
     const messageId = msg.key.id;
 
-    const silence = await silenceRapy(whatsapp, sessionId, msg, messages, silenced);
+    const silence = await silenceRapy(
+      whatsapp,
+      sessionId,
+      msg,
+      messages,
+      silenced,
+    );
     silenced = silence?.silenced;
     messages.push(...(silence?.messages || []));
 
@@ -60,9 +69,13 @@ export default async function rapy(whatsapp: Whatsapp) {
     }
 
     const threeMinutesAgo = currentTime - 3 * 60 * 1000;
-    recentMessageTimes = recentMessageTimes.filter((time) => time > threeMinutesAgo);
+    recentMessageTimes = recentMessageTimes.filter(
+      (time) => time > threeMinutesAgo,
+    );
 
-    const curtMessageId = (messagesIds.values.length + Math.floor(Math.random() * 1000)).toString();
+    const curtMessageId = (
+      messagesIds.values.length + Math.floor(Math.random() * 1000)
+    ).toString();
 
     messagesIds.set(curtMessageId, messageId ?? "");
 
@@ -91,7 +104,7 @@ export default async function rapy(whatsapp: Whatsapp) {
           messages = [];
         },
         1000 * 60 * 5,
-        "debounce-summary"
+        "debounce-summary",
       );
     }
 
@@ -105,7 +118,8 @@ export default async function rapy(whatsapp: Whatsapp) {
       }
 
       const averageInterval =
-        intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+        intervals.reduce((sum, interval) => sum + interval, 0) /
+        intervals.length;
 
       if (averageInterval <= 5 * 1000) return "very_active";
       if (averageInterval <= 9 * 1000) return "active";
@@ -115,24 +129,27 @@ export default async function rapy(whatsapp: Whatsapp) {
 
     const getDebounceTime = () => {
       const activity = isGroupActive();
-      if (activity === "very_active") return 8 * 1000 + Math.random() * 4 * 1000;
+      if (activity === "very_active")
+        return 8 * 1000 + Math.random() * 4 * 1000;
       if (activity === "active") return 5 * 1000 + Math.random() * 3 * 1000;
       return 2 * 1000 + Math.random() * 2 * 1000;
     };
 
     const processResponse = async () => {
       const timeSinceLastResponse = Date.now() - lastRapyResponseTime;
-      const minTimeBetweenResponses = isGroupActive() === "very_active" ? 15 * 1000 : 8 * 1000;
+      const minTimeBetweenResponses =
+        isGroupActive() === "very_active" ? 15 * 1000 : 8 * 1000;
       const activity = isGroupActive();
 
       beautifulLogger.groupActivity(activity, {
         "mensagens recentes": recentMessageTimes.length,
         "intervalo médio": `${Math.floor(
           recentMessageTimes.length > 1
-            ? (recentMessageTimes[recentMessageTimes.length - 1] - recentMessageTimes[0]) /
+            ? (recentMessageTimes[recentMessageTimes.length - 1] -
+                recentMessageTimes[0]) /
                 (recentMessageTimes.length - 1) /
                 1000
-            : 0
+            : 0,
         )}s`,
         "tempo desde última resposta": `${Math.floor(timeSinceLastResponse / 1000)}s`,
         "rapy mencionado": isRapyMentioned ? "sim" : "não",
@@ -141,7 +158,7 @@ export default async function rapy(whatsapp: Whatsapp) {
       if (timeSinceLastResponse < minTimeBetweenResponses && !isRapyMentioned) {
         beautifulLogger.info("DEBOUNCE", "Resposta bloqueada por cooldown", {
           "tempo restante": `${Math.floor(
-            (minTimeBetweenResponses - timeSinceLastResponse) / 1000
+            (minTimeBetweenResponses - timeSinceLastResponse) / 1000,
           )}s`,
         });
         return;
@@ -150,15 +167,24 @@ export default async function rapy(whatsapp: Whatsapp) {
       isGenerating = true;
       try {
         beautifulLogger.separator("VERIFICAÇÃO DE POSSIBILIDADE");
-        const { possible, reason } = await isPossibleResponse(db.getAll(), messages);
+        const { possible, reason } = await isPossibleResponse(
+          db.getAll(),
+          messages,
+        );
 
         if (!possible) {
-          beautifulLogger.warn("POSSIBILIDADE", "Resposta não é apropriada por: " + reason);
+          beautifulLogger.warn(
+            "POSSIBILIDADE",
+            "Resposta não é apropriada por: " + reason,
+          );
           isGenerating = false;
           return;
         }
 
-        beautifulLogger.success("POSSIBILIDADE", "Resposta aprovada por: " + reason);
+        beautifulLogger.success(
+          "POSSIBILIDADE",
+          "Resposta aprovada por: " + reason,
+        );
         await whatsapp.setTyping(sessionId);
 
         const result = await generateResponse(db.getAll(), messages);
@@ -188,7 +214,9 @@ export default async function rapy(whatsapp: Whatsapp) {
 
         for (const action of response) {
           if (action.message) {
-            const realMessageId = messagesIds.get(action.message.reply ?? "not-is-message");
+            const realMessageId = messagesIds.get(
+              action.message.reply ?? "not-is-message",
+            );
             if (action.message.reply && realMessageId) {
               const message = action.message.text;
               await whatsapp.sendTextReply(sessionId, realMessageId, message);
@@ -198,12 +226,20 @@ export default async function rapy(whatsapp: Whatsapp) {
                 jid: "",
                 ia: true,
               });
-              console.log(`🤖 DEBUG: Bot respondeu (reply). Total no array: ${messages.length}`);
+              console.log(
+                `🤖 DEBUG: Bot respondeu (reply). Total no array: ${messages.length}`,
+              );
               beautifulLogger.actionSent("message", {
                 tipo: "resposta",
-                conteúdo: message.substring(0, 50) + (message.length > 50 ? "..." : ""),
+                conteúdo:
+                  message.substring(0, 50) + (message.length > 50 ? "..." : ""),
                 respondendo_a: action.message.reply,
               });
+
+              console.log(
+                "🤖 DEBUG: Bot respondeu (reply). Total no array:",
+                messages.length,
+              );
             } else {
               const message = action.message.text;
               await whatsapp.sendText(sessionId, message);
@@ -213,14 +249,21 @@ export default async function rapy(whatsapp: Whatsapp) {
                 jid: "",
                 ia: true,
               });
-              console.log(`🤖 DEBUG: Bot respondeu (normal). Total no array: ${messages.length}`);
+              console.log(
+                `🤖 DEBUG: Bot respondeu (normal). Total no array: ${messages.length}`,
+              );
               beautifulLogger.actionSent("message", {
                 tipo: "mensagem normal",
-                conteúdo: message.substring(0, 50) + (message.length > 50 ? "..." : ""),
+                conteúdo:
+                  message.substring(0, 50) + (message.length > 50 ? "..." : ""),
               });
             }
           } else if (action.sticker) {
-            const stickerPath = path.join(getHomeDir(), "stickers", action.sticker);
+            const stickerPath = path.join(
+              getHomeDir(),
+              "stickers",
+              action.sticker,
+            );
             await whatsapp.sendSticker(sessionId, stickerPath);
             messages.push({
               content: `(Rapy): <usou o sticker ${action.sticker}>`,
@@ -256,7 +299,11 @@ export default async function rapy(whatsapp: Whatsapp) {
               arquivo: action.meme,
             });
           } else if (action.poll) {
-            await whatsapp.createPoll(sessionId, action.poll.question, action.poll.options);
+            await whatsapp.createPoll(
+              sessionId,
+              action.poll.question,
+              action.poll.options,
+            );
             messages.push({
               content: `(Rapy): <criou uma enquete: ${action.poll.question}>`,
               name: "Rapy",
@@ -277,7 +324,7 @@ export default async function rapy(whatsapp: Whatsapp) {
             await whatsapp.sendLocation(
               sessionId,
               action.location.latitude,
-              action.location.longitude
+              action.location.longitude,
             );
             beautifulLogger.actionSent("location", {
               coordenadas: `${action.location.latitude}, ${action.location.longitude}`,
@@ -289,27 +336,39 @@ export default async function rapy(whatsapp: Whatsapp) {
               jid: "",
               ia: true,
             });
-            await whatsapp.sendContact(sessionId, action.contact.cell, action.contact.name);
+            await whatsapp.sendContact(
+              sessionId,
+              action.contact.cell,
+              action.contact.name,
+            );
             beautifulLogger.actionSent("contact", {
               nome: action.contact.name,
               telefone: action.contact.cell,
             });
           }
 
-          await new Promise((resolve) => setTimeout(resolve, 1500 + Math.random() * 1000));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1500 + Math.random() * 1000),
+          );
         }
       } catch (error) {
         beautifulLogger.error("GERAÇÃO", "Erro ao gerar resposta", error);
       } finally {
         await whatsapp.setOnline(sessionId);
         isGenerating = false;
-        beautifulLogger.success("FINALIZAÇÃO", "Processo de resposta finalizado");
+        beautifulLogger.success(
+          "FINALIZAÇÃO",
+          "Processo de resposta finalizado",
+        );
         beautifulLogger.separator("FIM");
       }
     };
 
     if (isRapyMentioned) {
-      beautifulLogger.info("TRIGGER", "Rapy foi mencionado - processando imediatamente");
+      beautifulLogger.info(
+        "TRIGGER",
+        "Rapy foi mencionado - processando imediatamente",
+      );
       await processResponse();
     } else {
       const debounceTime = getDebounceTime();

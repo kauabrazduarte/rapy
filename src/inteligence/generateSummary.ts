@@ -23,9 +23,11 @@ export type ResponseAction = {
 
 export default async function generateSummary(
   data: Data,
-  messages: Message
+  messages: Message,
 ): Promise<ResponseAction> {
-  const messagesMaped: string = messages.map((message) => message.content).join("\n");
+  const messagesMaped: string = messages
+    .map((message) => message.content)
+    .join("\n");
 
   const responseSchema = z.object({
     summary: z.string(),
@@ -35,7 +37,7 @@ export default async function generateSummary(
         opinion: z.number().min(0).max(100),
         jid: z.string(),
         traits: z.array(z.string()),
-      })
+      }),
     ),
   });
 
@@ -72,7 +74,7 @@ export default async function generateSummary(
   const contextData = formatDataForPrompt(data);
 
   const { object } = await generateObject({
-    model: openai("gpt-4o-mini"),
+    model: openai("gpt-5-nano"),
     messages: [
       { role: "system", content: SUMMARY_PROMPT },
       {
@@ -91,7 +93,12 @@ export default async function generateSummary(
     }
 
     object.opinions.forEach((op, i) => {
-      if (!op.name || typeof op.opinion !== "number" || !op.jid || !Array.isArray(op.traits)) {
+      if (
+        !op.name ||
+        typeof op.opinion !== "number" ||
+        !op.jid ||
+        !Array.isArray(op.traits)
+      ) {
         throw new Error(`Opinião ${i} inválida`);
       }
     });
